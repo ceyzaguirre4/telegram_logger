@@ -37,6 +37,11 @@ def generate_random_id(N):
 	return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(N))
 
 
+@app.route('/', methods=['GET'])
+def hello():
+	return "hello, use as api"
+
+
 @app.route('/loggers/<logger_id>', methods=['GET'])
 def get_logger(logger_id):
 	if not logger_id in loggers:
