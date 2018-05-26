@@ -1,10 +1,20 @@
 import requests
 import json
 
-# resp = requests.post("http://127.0.0.1:5000/loggers")
-# print(resp.text)
-# token = json.loads(resp.text)['logger_id']
+basepath = "http://telegramrest.freemyip.com:5000/"
 
-token = "YUBZXPYNZ1Y6"
-resp = requests.post("http://127.0.0.1:5000/loggers/{}/".format(token), json=json.dumps({'text': "hello world"}))
+# # crear logger, devuelve {"logger_id":"O6WE566ZOPYZ"}
+# resp = requests.post(basepath + "loggers")
+# print(resp.text)
+# logger_id = json.loads(resp.text)['logger_id']
+
+
+# logear texto
+logger_id = "R3WCE0UV9FRZ"
+# resp = requests.post(basepath + "loggers/{}/".format(logger_id), json=json.dumps({'text': "Hello world"}))
+# print(resp.text)
+
+
+# eliminar logger
+resp = requests.delete(basepath + "loggers/{}".format(logger_id))
 print(resp.text)

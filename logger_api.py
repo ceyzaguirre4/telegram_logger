@@ -1,5 +1,5 @@
 #!flask/bin/python
-from flask import Flask, jsonify, abort, request, make_response
+from flask import Flask, jsonify, abort, request, make_response, render_template
 import string
 import random
 import json
@@ -39,7 +39,7 @@ def generate_random_id(N):
 
 @app.route('/', methods=['GET'])
 def hello():
-	return "hello, use as api"
+	return render_template('index.html')
 
 
 @app.route('/loggers/<logger_id>', methods=['GET'])
@@ -85,4 +85,4 @@ def not_found(error):
 
 
 if __name__ == '__main__':
-	app.run(debug=True)
+	app.run(host='0.0.0.0')
