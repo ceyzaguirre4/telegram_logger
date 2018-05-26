@@ -3,11 +3,11 @@ import requests
 import json
 
 TOKEN = "592726549:AAFkiTJP4GAIGYcktxIHibwReBKjZa56Hh0"
-basepath = "http://telegramrest.freemyip.com:5000/"
+# basepath = "http://telegramrest.freemyip.com:5000/"
 
-# # for testing
+# for testing
 # TOKEN = "554980581:AAFxOVkLY80qELwas7dAfgpX6uRYLqk10HI"
-# basepath = "http://0.0.0.0:5000/"
+basepath = "http://0.0.0.0:5000/"
 
 
 
@@ -109,8 +109,9 @@ def delete(bot, update, args):
 	elif args[0] not in subscribers:
 		bot.send_message(chat_id=update.message.chat_id, text="logger_id doesn't exist")
 	else:
-		requests.delete(basepath + "loggers/{}".format(args[0]))
-		bot.send_message(chat_id=update.message.chat_id, text="Deleted")
+		resp = requests.delete(basepath + "loggers/{}".format(args[0]))
+		if json.loads(resp.text)['result']:
+			bot.send_message(chat_id=update.message.chat_id, text="Deleted")
 delete_handler = CommandHandler('delete', delete, pass_args=True)
 updater.dispatcher.add_handler(delete_handler)
 
