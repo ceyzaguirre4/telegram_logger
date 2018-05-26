@@ -3,7 +3,7 @@ from flask import Flask, jsonify, abort, request, make_response, render_template
 import string
 import random
 import json
-import time
+import datetime
 from telegram_logger import notify_subscribers, create_logger, del_logger
 
 app = Flask(__name__)
@@ -16,7 +16,8 @@ class logger:
 
 
 	def new_log(self, text):
-		self.logs.append((time, text))
+		date = datetime.datetime.now()
+		self.logs.append((date, text))
 
 	def __getitem__(self, idx):
 		return self.logs[idx]
@@ -27,14 +28,17 @@ class logger:
 	def all_logs(self):
 		all_logs = ""
 		for log in self.logs:
-			all_logs += log[1] + "\n"
+			all_logs += "{}:\t{}\n".format(log[0].strftime("%y-%m-%d-%H-%M"), log[1])
 		return all_logs
 
 
 loggers = {}
 
 def generate_random_id(N):
-	return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(N))
+	logger_id = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(N))
+	while logger_id in loggers:
+		logger_id = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(N))
+	return logger_id
 
 
 @app.route('/', methods=['GET'])
@@ -79,6 +83,13 @@ def delete_task(logger_id):
 	del loggers[logger_id]
 	del_logger(logger_id)
 	return jsonify({'result': True})
+
+@app.route('/loggers/<logger_id>/full_log', methods=['GET'])
+def full_log(logger_id):
+	if not logger_id in loggers:
+		abort(404)
+	logger = loggers[logger_id]
+	return jsonify({'full_log': logger.all_logs()})
 
 
 @app.errorhandler(404)
