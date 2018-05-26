@@ -62,6 +62,8 @@ def create_log(logger_id):
 	print(request.json)
 	if not request.json or not 'text' in request.json:
 		abort(400)
+	elif not logger_id in loggers:
+		abort(404)
 	logger = loggers[logger_id]
 	params = json.loads(request.json)
 	logger.new_log(params['text'])

@@ -15,7 +15,6 @@ def del_logger(logger_id):
 from telegram.ext import CommandHandler
 
 def subscribe(bot, update, args):
-	print(0)
 	if not args:
 		bot.send_message(chat_id=update.message.chat_id, text="You must supply the logger id: /subscribe logger_id")
 	elif args[0] not in subscribers:
@@ -23,12 +22,11 @@ def subscribe(bot, update, args):
 	elif update.message.chat_id in subscribers[args[0]]:
 		bot.send_message(chat_id=update.message.chat_id, text="You were subscribed already")
 	else:
-		print(1)
-		notify_subscribers(args[0], "{} has subscribed".format(update.message.username))
-		print(2)
 		subscribers[args[0]][update.message.chat_id] = bot
 		bot.send_message(chat_id=update.message.chat_id, text="You are now subscribed")
-		print(3)
+		for chat_id in subscribers[args[0]].keys():
+			if chat_id != update.message.chat_id:
+				subscribers[args[0]][chat_id].send_message(chat_id=chat_id, text="{} has subscribed".format(update.message.username))
 subscribe_handler = CommandHandler('subscribe', subscribe, pass_args=True)
 updater.dispatcher.add_handler(subscribe_handler)
 
@@ -42,21 +40,18 @@ def unsubscribe(bot, update, args):
 	else:
 		bot.send_message(chat_id=update.message.chat_id, text="You were removed from subscriber list")
 		del subscribers[args[0]][update.message.chat_id]
-		notify_subscribers(args[0], "{} has unsubscribed".format(update.message.username))
+		for chat_id in subscribers[args[0]].keys():
+			subscribers[args[0]][chat_id].send_message(chat_id=chat_id, text="{} has unsubscribed".format(update.message.username))
 unsubscribe_handler = CommandHandler('unsubscribe', unsubscribe, pass_args=True)
 updater.dispatcher.add_handler(unsubscribe_handler)
 
 
 def show_subscriptions(bot, update):
-	all_subs = ""
+	all_subs = "Currently subscribed to: \n"
 	for logger in subscribers.keys():
 		if update.message.chat_id in subscribers[logger]:
 			all_subs += logger + "\n"
-	
-	if all_subs:
-		bot.send_message(chat_id=update.message.chat_id, text="Currently subscribed to: \n"+all_subs)
-	else:
-		bot.send_message(chat_id=update.message.chat_id, text="No subscriptions")
+	bot.send_message(chat_id=update.message.chat_id, text=all_subs)
 subscriptions_handler = CommandHandler('show_subscriptions', show_subscriptions)
 updater.dispatcher.add_handler(subscriptions_handler)
 
@@ -64,7 +59,7 @@ updater.dispatcher.add_handler(subscriptions_handler)
 from telegram.ext import MessageHandler, Filters
 def unknown(bot, update):
 	"""debe ir ULTIMO, responde a los comandos que no activaron alguno de arriba"""
-	valid = "Sorry I can only accept /subscribe, /unsubscribe and /show_subscriptions"
+	valid = """Sorry I can only accept /subscribe, /unsubscribe and /show_subscriptions"""
 	bot.send_message(chat_id=update.message.chat_id, text=valid)
 unknown_handler = MessageHandler(Filters.command, unknown)
 updater.dispatcher.add_handler(unknown_handler)
@@ -79,5 +74,4 @@ def notify_subscribers(logger_id, message):
 ### iniciar el bot 
 
 updater.start_polling()
-
 
