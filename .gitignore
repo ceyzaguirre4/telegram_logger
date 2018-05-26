@@ -1,6 +1,9 @@
 # mac specific
 .DS_Store
 
+# test specific
+req.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
