@@ -7,13 +7,13 @@ import datetime
 from telegram_logger import notify_subscribers, create_logger, del_logger
 
 app = Flask(__name__)
+loggers = {}
 
 
 class logger:
 	def __init__(self, logger_id):
 		self.id = logger_id
 		self.logs = []
-
 
 	def new_log(self, text):
 		date = datetime.datetime.now()
@@ -31,8 +31,6 @@ class logger:
 			all_logs += "{}:\t{}\n".format(log[0].strftime("%y-%m-%d-%H-%M"), log[1])
 		return all_logs
 
-
-loggers = {}
 
 def generate_random_id(N):
 	logger_id = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(N))
@@ -75,7 +73,7 @@ def create_log(logger_id):
 	return jsonify({'result': True}), 201
 
 
-@app.route('/loggers/<logger_id>', methods=['DELETE'])
+@app.route('/loggers/<logger_id>/', methods=['DELETE'])
 def delete_task(logger_id):
 	if not logger_id in loggers:
 		abort(404)
@@ -83,6 +81,7 @@ def delete_task(logger_id):
 	del loggers[logger_id]
 	del_logger(logger_id)
 	return jsonify({'result': True})
+
 
 @app.route('/loggers/<logger_id>/full_log', methods=['GET'])
 def full_log(logger_id):
