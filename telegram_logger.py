@@ -1,14 +1,25 @@
 from telegram.ext import Updater
 import requests
 import json
+import os
 
-TOKEN = "592726549:AAFkiTJP4GAIGYcktxIHibwReBKjZa56Hh0"
-# basepath = "http://telegramrest.freemyip.com:5000/"
+
+def get_env_variable(var_name):
+    """ Get the environment variable or return exception """
+    try:
+        return os.environ[var_name]
+    except KeyError:
+        error_msg = "Set the %s environment variable" % var_name
+        raise Exception(error_msg)
+
+# Get ENV VARIABLES key
+# TOKEN = get_env_variable('TELEGRAM_TOKEN')
 
 # for testing
-# TOKEN = "554980581:AAFxOVkLY80qELwas7dAfgpX6uRYLqk10HI"
-basepath = "http://0.0.0.0:5000/"
+TOKEN = get_env_variable('TEST_TOKEN')
 
+
+basepath = "http://0.0.0.0:5000/"
 
 
 updater = Updater(token=TOKEN)
@@ -60,11 +71,8 @@ def unsubscribe(bot, update, args):
 		bot.send_message(chat_id=update.message.chat_id, text="You weren't subscribed")
 	else:
 		subscribers[args[0]].remove(update.message.chat_id)
-		print(1)
 		bot.send_message(chat_id=update.message.chat_id, text="You were removed from subscriber list")
-		print(2)
 		requests.post(basepath + "loggers/{}/".format(args[0]), json=json.dumps({'text': "{} has unsubscribed".format(update.message.username)}))
-		print(3)
 unsubscribe_handler = CommandHandler('unsubscribe', unsubscribe, pass_args=True)
 updater.dispatcher.add_handler(unsubscribe_handler)
 
