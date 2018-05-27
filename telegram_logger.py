@@ -12,17 +12,11 @@ def get_env_variable(var_name):
         error_msg = "Set the %s environment variable" % var_name
         raise Exception(error_msg)
 
-# Get ENV VARIABLES key
-# TOKEN = get_env_variable('TELEGRAM_TOKEN')
-
-# for testing
-TOKEN = get_env_variable('TEST_TOKEN')
-
 
 basepath = "http://0.0.0.0:5000/"
 
 
-updater = Updater(token=TOKEN)
+updater = Updater(token=get_env_variable('TELEGRAM_TOKEN'))
 bot = None
 
 
