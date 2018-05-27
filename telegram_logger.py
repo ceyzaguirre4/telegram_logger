@@ -87,7 +87,7 @@ def show_subscriptions(bot, update):
     else:
         update.message.reply_text("No active subscriptions")
 
-
+### CREATE
 def create(bot, update, user_data):
     resp = requests.post(basepath + "loggers")
     logger_id = json.loads(resp.text)['logger_id']
@@ -112,7 +112,7 @@ def no_choice(bot, update, user_data):
     del user_data['logger_id']
     update.message.reply_text("Ok, you weren't subscribed")
     return ConversationHandler.END
-
+### /CREATE
 
 def delete(bot, update, args):
     if not args:

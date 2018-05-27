@@ -4,7 +4,7 @@ import string
 import random
 import json
 import datetime
-from telegram_logger import notify_subscribers, create_logger, del_logger
+from telegram_logger import notify_subscribers, create_logger, del_logger, main
 
 app = Flask(__name__)
 loggers = {}
@@ -97,4 +97,5 @@ def not_found(error):
 
 
 if __name__ == '__main__':
+	main()
 	app.run(host='0.0.0.0')
