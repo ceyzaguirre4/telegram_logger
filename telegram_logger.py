@@ -1,6 +1,6 @@
-from telegram.ext import Updater
-from telegram.ext import CommandHandler
-from telegram.ext import MessageHandler, Filters
+from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
+                          ConversationHandler)
+from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
 import requests
 import json
 import os
@@ -18,6 +18,7 @@ def get_env_variable(var_name):
 basepath = "http://0.0.0.0:5000/"
 bot = None
 
+SUBSCRIBE, _ = range(2)
 
 def update_bot(func):
     def func_wrapper(*args, **kwargs):
@@ -25,6 +26,13 @@ def update_bot(func):
         bot = args[0]
         return func(*args, **kwargs)
     return func_wrapper
+
+
+def all_subscriptions(chat_id):
+    subscriptions = []
+    for logger in subscribers:
+        if chat_id in subscribers[logger]:
+            subscriptions.append(logger)
 
 
 subscribers = dict()
@@ -39,7 +47,7 @@ def del_logger(logger_id):
 
 @update_bot
 def start(bot, update):
-    valid = """I accept /subscribe, /unsubscribe, /show_subscriptions, /create, /create_subscribe and /delete commands"""
+    valid = """I accept /subscribe, /unsubscribe, /show_subscriptions, /create and /delete commands"""
     update.message.reply_text(valid)
 
 
@@ -53,7 +61,7 @@ def subscribe(bot, update, args):
     else:
         subscribers[args[0]].add(update.message.chat_id)
         update.message.reply_text("You are now subscribed")
-        requests.post(basepath + "loggers/{}/".format(args[0]), json=json.dumps({'text': "Welcome {}".format(update.message.username)}))
+        # requests.post(basepath + "loggers/{}/".format(args[0]), json=json.dumps({'text': "Welcome {}".format(update.message.username)}))
 
 
 def unsubscribe(bot, update, args):
@@ -66,7 +74,7 @@ def unsubscribe(bot, update, args):
     else:
         subscribers[args[0]].remove(update.message.chat_id)
         update.message.reply_text("You were removed from subscriber list")
-        requests.post(basepath + "loggers/{}/".format(args[0]), json=json.dumps({'text': "{} has unsubscribed".format(update.message.username)}))
+        # requests.post(basepath + "loggers/{}/".format(args[0]), json=json.dumps({'text': "{} has unsubscribed".format(update.message.username)}))
 
 
 def show_subscriptions(bot, update):
@@ -80,17 +88,30 @@ def show_subscriptions(bot, update):
         update.message.reply_text("No active subscriptions")
 
 
-def create(bot, update):
+def create(bot, update, user_data):
     resp = requests.post(basepath + "loggers")
     logger_id = json.loads(resp.text)['logger_id']
-    update.message.reply_text("logger created at " + str(logger_id))
+    user_data['logger_id'] = logger_id
+    subscriptions = ReplyKeyboardMarkup([["Yes"], ["No"]], one_time_keyboard=True)
+    update.message.reply_text("logger created at {}. Subscribe?".format(logger_id),
+        reply_markup=subscriptions)
 
+    return SUBSCRIBE
 
-def create_and_subscribe(bot, update):
-    resp = requests.post(basepath + "loggers")
-    logger_id = json.loads(resp.text)['logger_id']
+def yes_choice(bot, update, user_data):
+    """for use in create conversation"""
+    logger_id = user_data['logger_id']
+    del user_data['logger_id']
     subscribers[logger_id].add(update.message.chat_id)
-    update.message.reply_text("Welcome {}".format(update.message.username))
+    update.message.reply_text("You are now subscribed")
+    # requests.post(basepath + "loggers/{}/".format(args[0]), json=json.dumps({'text': "Welcome {}".format(update.message.username)}))
+    return ConversationHandler.END
+
+def no_choice(bot, update, user_data):
+    """for use in create conversation"""
+    del user_data['logger_id']
+    update.message.reply_text("Ok, you weren't subscribed")
+    return ConversationHandler.END
 
 
 def delete(bot, update, args):
@@ -106,7 +127,7 @@ def delete(bot, update, args):
 
 def unknown(bot, update):
     """debe ir ULTIMO, responde a los comandos que no activaron alguno de arriba"""
-    valid = """I only accept /subscribe, /unsubscribe, /show_subscriptions, /create, /create_subscribe and /delete commands"""
+    valid = """I only accept /subscribe, /unsubscribe, /show_subscriptions, /create and /delete commands"""
     update.message.reply_text(valid)
 
 
@@ -132,11 +153,22 @@ def main():
     subscriptions_handler = CommandHandler('show_subscriptions', show_subscriptions)
     updater.dispatcher.add_handler(subscriptions_handler)
 
-    create_handler = CommandHandler('create', create)
-    updater.dispatcher.add_handler(create_handler)
+    create_handler = ConversationHandler(
+        entry_points=[CommandHandler('create', create, pass_user_data=True)],
 
-    create_and_subscribe_handler = CommandHandler('create_subscribe', create_and_subscribe)
-    updater.dispatcher.add_handler(create_and_subscribe_handler)
+        states={
+            SUBSCRIBE: [RegexHandler('^(Yes)$',
+                                    yes_choice,
+                                    pass_user_data=True),
+                       RegexHandler('^(No)$',
+                                    no_choice,
+                                    pass_user_data=True)
+                       ]
+            },
+                    fallbacks=[RegexHandler('^Done$', no_choice, pass_user_data=True)]
+
+            )
+    updater.dispatcher.add_handler(create_handler)
 
     delete_handler = CommandHandler('delete', delete, pass_args=True)
     updater.dispatcher.add_handler(delete_handler)
