@@ -44,8 +44,6 @@ def del_logger(logger_id):
     del subscribers[logger_id]
 
 
-#### responder a comandos
-
 @update_bot
 def start(bot, update):
     valid = """I accept /subscribe, /unsubscribe, /show_subscriptions, /create and /delete commands"""
@@ -145,15 +143,6 @@ def subscribe_choice(bot, update, user_data):
 ### /CREATE
 
 def delete(bot, update, user_data):
-    # if not args:
-    #     update.message.reply_text("You must supply the logger id: /delete logger_id")
-    # elif args[0] not in subscribers:
-    #     update.message.reply_text("logger_id doesn't exist")
-    # else:
-    #     resp = requests.delete(basepath + "loggers/{}/".format(args[0]))
-    #     if json.loads(resp.text)['result']:
-    #         update.message.reply_text("Deleted")
-    ### UNSUBSCRIBE
     keyboard = [[InlineKeyboardButton(subscription, callback_data=subscription)] for subscription in all_subscriptions(update.message.chat_id)]
     keyboard.append([InlineKeyboardButton("Other", callback_data="Other")])
     keyboard.append([InlineKeyboardButton("Cancel", callback_data="Cancel")])
@@ -176,7 +165,7 @@ def delete_token_choice(bot, update, user_data):
         bot.edit_message_text(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
-            text="Type logger id"
+            text="Type logger id or /cancel"
         )
         return OTHER
     resp = requests.delete(basepath + "loggers/{}/".format(choice))
