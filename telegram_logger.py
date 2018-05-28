@@ -137,11 +137,12 @@ def subscribe_choice(bot, update, user_data):
         bot.edit_message_text(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
-            text="Ok, you weren't subscribed"
+            text="Ok, you weren't subscribed to {}".format(logger_id)
         )
     return ConversationHandler.END
 ### /CREATE
 
+### DELETE
 def delete(bot, update, user_data):
     keyboard = [[InlineKeyboardButton(subscription, callback_data=subscription)] for subscription in all_subscriptions(update.message.chat_id)]
     keyboard.append([InlineKeyboardButton("Other", callback_data="Other")])
@@ -170,7 +171,11 @@ def delete_token_choice(bot, update, user_data):
         return OTHER
     resp = requests.delete(basepath + "loggers/{}/".format(choice))
     if json.loads(resp.text)['result']:
-        pass
+        bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text="Deleted {}".format(choice)
+        )
     return ConversationHandler.END
 
 def other(bot, update):
@@ -186,7 +191,7 @@ def other(bot, update):
 def cancel_delete(bot, update):
     update.message.reply_text("None deleted")
     return ConversationHandler.END
-## /UNSUBSCRIBE
+### /DELETE
 
 
 def unknown(bot, update):
@@ -243,7 +248,7 @@ def main():
 
         states={
             SELECT_DELETE: [CallbackQueryHandler(delete_token_choice, pass_user_data=True)],
-            OTHER: [MessageHandler(Filters.text, other)]
+            OTHER: [MessageHandler((Filters.all & (~ Filters.regex('/cancel'))), other)]
             },
         fallbacks=[CommandHandler('cancel', cancel_delete)])
     updater.dispatcher.add_handler(delete_handler)
