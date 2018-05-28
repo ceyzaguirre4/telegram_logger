@@ -1,6 +1,6 @@
-from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
-                          ConversationHandler)
-from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
+from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
+                          ConversationHandler, CallbackQueryHandler)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import requests
 import json
 import os
@@ -18,7 +18,7 @@ def get_env_variable(var_name):
 basepath = "http://0.0.0.0:5000/"
 bot = None
 
-SUBSCRIBE, _ = range(2)
+SUBSCRIBE, SELECT_UNSUBSCRIBE, SELECT_DELETE, OTHER, SELECT_SUBSCRIBE = range(5)
 
 def update_bot(func):
     def func_wrapper(*args, **kwargs):
@@ -33,6 +33,7 @@ def all_subscriptions(chat_id):
     for logger in subscribers:
         if chat_id in subscribers[logger]:
             subscriptions.append(logger)
+    return subscriptions
 
 
 subscribers = dict()
@@ -50,32 +51,52 @@ def start(bot, update):
     valid = """I accept /subscribe, /unsubscribe, /show_subscriptions, /create and /delete commands"""
     update.message.reply_text(valid)
 
+### SUBSCRIBE
+def subscribe(bot, update):
+    update.message.reply_text("Type logger id or /cancel")
+    return SELECT_SUBSCRIBE
 
-def subscribe(bot, update, args):
-    if not args:
-        update.message.reply_text("You must supply the logger id: /subscribe logger_id")
-    elif args[0] not in subscribers:
-        update.message.reply_text("logger_id doesn't exist")
-    elif update.message.chat_id in subscribers[args[0]]:
-        update.message.reply_text("You were subscribed already")
+def subscribe_input(bot, update):
+    if update.message.text not in subscribers:
+        update.message.reply_text("logger id does not exist. Try again or /cancel")
+        return SELECT_SUBSCRIBE
     else:
-        subscribers[args[0]].add(update.message.chat_id)
+        subscribers[update.message.text].add(update.message.chat_id)
         update.message.reply_text("You are now subscribed")
-        # requests.post(basepath + "loggers/{}/".format(args[0]), json=json.dumps({'text': "Welcome {}".format(update.message.username)}))
+    return ConversationHandler.END
 
+def cancel_subscribe(bot, update):
+    update.message.reply_text("Didn't subscribe")
+    return ConversationHandler.END
+## /SUBSCRIBE
 
-def unsubscribe(bot, update, args):
-    if not args:
-        update.message.reply_text("You must supply the logger id: /unsubscribe logger_id")
-    elif args[0] not in subscribers:
-        update.message.reply_text("logger_id doesn't exist")
-    elif update.message.chat_id not in subscribers[args[0]]:
-        update.message.reply_text("You weren't subscribed")
-    else:
-        subscribers[args[0]].remove(update.message.chat_id)
-        update.message.reply_text("You were removed from subscriber list")
-        # requests.post(basepath + "loggers/{}/".format(args[0]), json=json.dumps({'text': "{} has unsubscribed".format(update.message.username)}))
+### UNSUBSCRIBE
+def unsubscribe(bot, update, user_data):
+    keyboard = [[InlineKeyboardButton(subscription, callback_data=subscription)] for subscription in all_subscriptions(update.message.chat_id)]
+    keyboard.append([InlineKeyboardButton("Cancel", callback_data="Cancel")])
+    update.message.reply_text("Select one to unsubscribe", reply_markup=InlineKeyboardMarkup(keyboard))
+    return SELECT_UNSUBSCRIBE
 
+def unsubscribe_token_choice(bot, update, user_data):
+    query = update.callback_query
+    choice = query.data
+    if choice == "Cancel":
+        bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text="Didn't unsubscribe"
+        )
+        return ConversationHandler.END
+
+    subscribers[choice].remove(query.message.chat_id)
+
+    bot.edit_message_text(
+        chat_id=query.message.chat_id,
+        message_id=query.message.message_id,
+        text="You were removed from {}'s subscriber list".format(choice)
+    )
+    return ConversationHandler.END
+## /UNSUBSCRIBE
 
 def show_subscriptions(bot, update):
     all_subs = ""
@@ -92,37 +113,91 @@ def create(bot, update, user_data):
     resp = requests.post(basepath + "loggers")
     logger_id = json.loads(resp.text)['logger_id']
     user_data['logger_id'] = logger_id
-    subscriptions = ReplyKeyboardMarkup([["Yes"], ["No"]], one_time_keyboard=True)
-    update.message.reply_text("logger created at {}. Subscribe?".format(logger_id),
-        reply_markup=subscriptions)
+
+    keyboard = [[InlineKeyboardButton("Yes", callback_data="Yes"),
+                 InlineKeyboardButton("No", callback_data="No")]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.message.reply_text("logger created at {}. Subscribe?".format(logger_id), reply_markup=reply_markup)
 
     return SUBSCRIBE
 
-def yes_choice(bot, update, user_data):
-    """for use in create conversation"""
+def subscribe_choice(bot, update, user_data):
+    query = update.callback_query
+    choice = query.data
     logger_id = user_data['logger_id']
     del user_data['logger_id']
-    subscribers[logger_id].add(update.message.chat_id)
-    update.message.reply_text("You are now subscribed")
-    # requests.post(basepath + "loggers/{}/".format(args[0]), json=json.dumps({'text': "Welcome {}".format(update.message.username)}))
-    return ConversationHandler.END
-
-def no_choice(bot, update, user_data):
-    """for use in create conversation"""
-    del user_data['logger_id']
-    update.message.reply_text("Ok, you weren't subscribed")
+    if choice == "Yes":
+        subscribers[logger_id].add(query.message.chat_id)
+        bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text="Subscribed to {}".format(logger_id)
+        )
+    else:
+        bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text="Ok, you weren't subscribed"
+        )
     return ConversationHandler.END
 ### /CREATE
 
-def delete(bot, update, args):
-    if not args:
-        update.message.reply_text("You must supply the logger id: /delete logger_id")
-    elif args[0] not in subscribers:
-        update.message.reply_text("logger_id doesn't exist")
+def delete(bot, update, user_data):
+    # if not args:
+    #     update.message.reply_text("You must supply the logger id: /delete logger_id")
+    # elif args[0] not in subscribers:
+    #     update.message.reply_text("logger_id doesn't exist")
+    # else:
+    #     resp = requests.delete(basepath + "loggers/{}/".format(args[0]))
+    #     if json.loads(resp.text)['result']:
+    #         update.message.reply_text("Deleted")
+    ### UNSUBSCRIBE
+    keyboard = [[InlineKeyboardButton(subscription, callback_data=subscription)] for subscription in all_subscriptions(update.message.chat_id)]
+    keyboard.append([InlineKeyboardButton("Other", callback_data="Other")])
+    keyboard.append([InlineKeyboardButton("Cancel", callback_data="Cancel")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.message.reply_text("Select one to delete", reply_markup=reply_markup)
+    return SELECT_DELETE
+
+def delete_token_choice(bot, update, user_data):
+    query = update.callback_query
+    choice = query.data
+    if choice == "Cancel":
+        bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text="None deleted"
+        )
+        return ConversationHandler.END
+    if choice == "Other":
+        bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text="Type logger id"
+        )
+        return OTHER
+    resp = requests.delete(basepath + "loggers/{}/".format(choice))
+    if json.loads(resp.text)['result']:
+        pass
+    return ConversationHandler.END
+
+def other(bot, update):
+    if update.message.text not in subscribers:
+        update.message.reply_text("logger id does not exist. Try again or /cancel")
+        return OTHER
     else:
-        resp = requests.delete(basepath + "loggers/{}/".format(args[0]))
+        resp = requests.delete(basepath + "loggers/{}/".format(update.message.text))
         if json.loads(resp.text)['result']:
-            update.message.reply_text("Deleted")
+            pass
+    return ConversationHandler.END
+
+def cancel_delete(bot, update):
+    update.message.reply_text("None deleted")
+    return ConversationHandler.END
+## /UNSUBSCRIBE
 
 
 def unknown(bot, update):
@@ -144,11 +219,14 @@ def main():
     start_handler = CommandHandler('start', start)
     updater.dispatcher.add_handler(start_handler)
 
-    subscribe_handler = CommandHandler('subscribe', subscribe, pass_args=True)
-    updater.dispatcher.add_handler(subscribe_handler)
+    subscribe_handler = ConversationHandler(
+        entry_points=[CommandHandler('subscribe', subscribe)],
 
-    unsubscribe_handler = CommandHandler('unsubscribe', unsubscribe, pass_args=True)
-    updater.dispatcher.add_handler(unsubscribe_handler)
+        states={
+            SELECT_SUBSCRIBE: [MessageHandler(Filters.text, subscribe_input)]
+            },
+        fallbacks=[CommandHandler('cancel', cancel_subscribe)])
+    updater.dispatcher.add_handler(subscribe_handler)
 
     subscriptions_handler = CommandHandler('show_subscriptions', show_subscriptions)
     updater.dispatcher.add_handler(subscriptions_handler)
@@ -157,20 +235,28 @@ def main():
         entry_points=[CommandHandler('create', create, pass_user_data=True)],
 
         states={
-            SUBSCRIBE: [RegexHandler('^(Yes)$',
-                                    yes_choice,
-                                    pass_user_data=True),
-                       RegexHandler('^(No)$',
-                                    no_choice,
-                                    pass_user_data=True)
-                       ]
+            SUBSCRIBE: [CallbackQueryHandler(subscribe_choice, pass_user_data=True)]
             },
-                    fallbacks=[RegexHandler('^Done$', no_choice, pass_user_data=True)]
-
-            )
+        fallbacks=[])
     updater.dispatcher.add_handler(create_handler)
 
-    delete_handler = CommandHandler('delete', delete, pass_args=True)
+    unsubscribe_handler = ConversationHandler(
+        entry_points=[CommandHandler('unsubscribe', unsubscribe, pass_user_data=True)],
+
+        states={
+            SELECT_UNSUBSCRIBE: [CallbackQueryHandler(unsubscribe_token_choice, pass_user_data=True)]
+            },
+        fallbacks=[])
+    updater.dispatcher.add_handler(unsubscribe_handler)
+
+    delete_handler =ConversationHandler(
+        entry_points=[CommandHandler('delete', delete, pass_user_data=True)],
+
+        states={
+            SELECT_DELETE: [CallbackQueryHandler(delete_token_choice, pass_user_data=True)],
+            OTHER: [MessageHandler(Filters.text, other)]
+            },
+        fallbacks=[CommandHandler('cancel', cancel_delete)])
     updater.dispatcher.add_handler(delete_handler)
 
     unknown_handler = MessageHandler(Filters.command, unknown)

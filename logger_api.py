@@ -77,7 +77,7 @@ def create_log(logger_id):
 def delete_task(logger_id):
 	if not logger_id in loggers:
 		abort(404)
-	notify_subscribers(logger_id, "logger: {} no longer exists".format(logger_id))
+	notify_subscribers(logger_id, "logger no longer exists".format(logger_id))
 	del loggers[logger_id]
 	del_logger(logger_id)
 	return jsonify({'result': True})
