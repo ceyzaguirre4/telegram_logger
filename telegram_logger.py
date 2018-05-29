@@ -185,7 +185,7 @@ def other(bot, update):
     else:
         resp = requests.delete(basepath + "loggers/{}/".format(update.message.text))
         if json.loads(resp.text)['result']:
-            pass
+            update.message.reply_text("Deleted {}".format(update.message.text))
     return ConversationHandler.END
 
 def cancel_delete(bot, update):
