@@ -39,9 +39,9 @@ class logger:
         return str(self.id)
 
     def all_logs(self):
-        all_logs = ""
+        all_logs = []
         for log in self.logs:
-            all_logs += "{}:\t{}\n".format(log[0].strftime("%y-%m-%d-%H-%M"), log[1])
+            all_logs.append([log[0].strftime("%y-%m-%d-%H-%M"), log[1]])
         return all_logs
 
 

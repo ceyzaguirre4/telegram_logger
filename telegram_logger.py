@@ -1,6 +1,6 @@
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler, CallbackQueryHandler)
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 import requests
 import json
 import os
@@ -17,6 +17,7 @@ def get_env_variable(var_name):
 
 basepath = "http://0.0.0.0:5000/"
 bot = None
+admin_id = int(get_env_variable("TelegramUID"))
 
 SUBSCRIBE, SELECT_UNSUBSCRIBE, SELECT_DELETE, OTHER, SELECT_SUBSCRIBE = range(5)
 
@@ -25,6 +26,16 @@ def update_bot(func):
         global bot
         bot = args[0]
         return func(*args, **kwargs)
+    return func_wrapper
+
+def restricted(func):
+    def func_wrapper(bot, update, *args, **kwargs):
+        user_id = update.effective_user.id
+        if user_id != admin_id:
+            print(user_id, admin_id)
+            print("NOT ADMIN")
+            return 
+        return func(bot, update, *args, **kwargs)
     return func_wrapper
 
 
@@ -43,6 +54,25 @@ def create_logger(logger_id):
 def del_logger(logger_id):
     del subscribers[logger_id]
 
+#################
+##   HANDLERS   #
+#################
+@restricted
+def all_logs(bot, update):
+    title = "<b>ALL LOGS\n</b>"
+    update.message.reply_text(title + "\n".join(subscribers.keys()), parse_mode=ParseMode.HTML)
+
+@restricted
+def info(bot, update, args):
+    ret = "<b>INFO</b>\n "
+    for log_id in args:
+        ret += '  <b>{}</b>\n'.format(log_id)
+        if log_id in args:
+            for subs in subscribers[log_id]:
+                ret += '    {}\n'.format(subs)
+        else:
+            ret += "    Doesn't exist\n"
+    update.message.reply_text(ret, parse_mode=ParseMode.HTML)
 
 @update_bot
 def start(bot, update):
@@ -209,6 +239,16 @@ def notify_subscribers(logger_id, message):
 def main():
     # Create the EventHandler and pass it your bot's token.
     updater = Updater(token=get_env_variable('TELEGRAM_TOKEN'))
+
+    ## RESTRICTED, ONLY ADMIN
+
+    all_handler = CommandHandler('all_logs', all_logs)
+    updater.dispatcher.add_handler(all_handler)
+
+    info_handler = CommandHandler('info', info, pass_args=True)
+    updater.dispatcher.add_handler(info_handler)
+
+    ## GENERAL USE
 
     start_handler = CommandHandler('start', start)
     updater.dispatcher.add_handler(start_handler)
