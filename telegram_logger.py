@@ -217,7 +217,7 @@ def main():
         entry_points=[CommandHandler('subscribe', subscribe)],
 
         states={
-            SELECT_SUBSCRIBE: [MessageHandler(Filters.text, subscribe_input)]
+            SELECT_SUBSCRIBE: [MessageHandler((Filters.all & (~ Filters.regex('/cancel'))), subscribe_input)]
             },
         fallbacks=[CommandHandler('cancel', cancel_subscribe)])
     updater.dispatcher.add_handler(subscribe_handler)
