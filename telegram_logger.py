@@ -75,12 +75,30 @@ def info(bot, update, args):
     update.message.reply_text(ret, parse_mode=ParseMode.HTML)
 
 @update_bot
-def start(bot, update):
+def start(bot, update, args):
+    """https://t.me/LossNotifierBot?start=Hello%20World!"""
     valid = """I accept /subscribe, /unsubscribe, /show_subscriptions, /create and /delete commands"""
-    update.message.reply_text(valid)
+    if args:
+        if args not in subscribers:
+            update.message.reply_text("logger id does not exist.\n" + valid)
+        else:
+            subscribers[args].add(update.message.chat_id)
+            update.message.reply_text("You are now subscribed to {}\n".format(args[0]) + valid)
+    else:
+        update.message.reply_text(valid)
 
 ### SUBSCRIBE
-def subscribe(bot, update):
+def subscribe(bot, update, args):
+    if args:
+        ret = ""
+        for arg in args:
+            if arg not in subscribers:
+                ret += "{} doesn't exist\n".format(arg)
+            else:
+                ret += "You are now subscribed to {}\n".format(arg)
+                subscribers[arg].add(update.message.chat_id)
+        update.message.reply_text(ret)
+        return ConversationHandler.END
     update.message.reply_text("Type logger id or /cancel")
     return SELECT_SUBSCRIBE
 
@@ -173,7 +191,18 @@ def subscribe_choice(bot, update, user_data):
 ### /CREATE
 
 ### DELETE
-def delete(bot, update, user_data):
+def delete(bot, update, args):
+    if args:
+        ret = ""
+        for arg in args:
+            if arg not in subscribers:
+                ret += "{} doesn't exist\n".format(arg)
+            else:
+                resp = requests.delete(basepath + "loggers/{}/".format(arg))
+                if json.loads(resp.text)['result']:
+                    ret += "Deleted {}\n".format(arg)
+        update.message.reply_text(ret)
+        return ConversationHandler.END
     keyboard = [[InlineKeyboardButton(subscription, callback_data=subscription)] for subscription in all_subscriptions(update.message.chat_id)]
     keyboard.append([InlineKeyboardButton("Other", callback_data="Other")])
     keyboard.append([InlineKeyboardButton("Cancel", callback_data="Cancel")])
@@ -182,7 +211,7 @@ def delete(bot, update, user_data):
     update.message.reply_text("Select one to delete", reply_markup=reply_markup)
     return SELECT_DELETE
 
-def delete_token_choice(bot, update, user_data):
+def delete_token_choice(bot, update):
     query = update.callback_query
     choice = query.data
     if choice == "Cancel":
@@ -231,9 +260,13 @@ def unknown(bot, update):
 
 
 ### funcion para notificar
-def notify_subscribers(logger_id, message):
+def text_notify_subscribers(logger_id, message):
     for chat_id in subscribers[logger_id]:
         bot.send_message(chat_id=chat_id, text="{}:\n{}".format(logger_id, message))
+
+def img_notify_subscribers(logger_id, image):
+    for chat_id in subscribers[logger_id]:
+        bot.send_photo(chat_id=chat_id, photo=image)
 
 
 def main():
@@ -250,11 +283,11 @@ def main():
 
     ## GENERAL USE
 
-    start_handler = CommandHandler('start', start)
+    start_handler = CommandHandler('start', start, pass_args=True)
     updater.dispatcher.add_handler(start_handler)
 
     subscribe_handler = ConversationHandler(
-        entry_points=[CommandHandler('subscribe', subscribe)],
+        entry_points=[CommandHandler('subscribe', subscribe, pass_args=True)],
 
         states={
             SELECT_SUBSCRIBE: [MessageHandler((Filters.all & (~ Filters.regex('/cancel'))), subscribe_input)]
@@ -284,10 +317,10 @@ def main():
     updater.dispatcher.add_handler(unsubscribe_handler)
 
     delete_handler =ConversationHandler(
-        entry_points=[CommandHandler('delete', delete, pass_user_data=True)],
+        entry_points=[CommandHandler('delete', delete, pass_args=True)],
 
         states={
-            SELECT_DELETE: [CallbackQueryHandler(delete_token_choice, pass_user_data=True)],
+            SELECT_DELETE: [CallbackQueryHandler(delete_token_choice)],
             OTHER: [MessageHandler((Filters.all & (~ Filters.regex('/cancel'))), other)]
             },
         fallbacks=[CommandHandler('cancel', cancel_delete)])

@@ -4,7 +4,7 @@ import string
 import random
 import json
 import datetime
-from telegram_logger import notify_subscribers, create_logger, del_logger, main
+from telegram_logger import create_logger, del_logger, main, text_notify_subscribers, img_notify_subscribers
 import signal
 
 
@@ -74,15 +74,22 @@ def new_logger():
 
 @app.route('/loggers/<logger_id>/', methods=['POST'])
 def create_log(logger_id):
-    print(request.json)
-    if not request.json or not 'text' in request.json:
+    if not request.files and not request.json:
         abort(400)
     elif not logger_id in loggers:
         abort(404)
-    logger = loggers[logger_id]
-    params = json.loads(request.json)
-    logger.new_log(params['text'])
-    notify_subscribers(logger_id, params['text'])
+    elif 'media' in request.files:
+        logger = loggers[logger_id]
+        file = request.files['media']
+        logger.new_log(file)
+        img_notify_subscribers(logger_id, file)
+    elif 'text' in request.json:
+        logger = loggers[logger_id]
+        params = json.loads(request.json)
+        logger.new_log(params['text'])
+        text_notify_subscribers(logger_id, params['text'])
+    else:
+        abort(400)
     return jsonify({'result': True}), 201
 
 
@@ -90,7 +97,7 @@ def create_log(logger_id):
 def delete_task(logger_id):
     if not logger_id in loggers:
         abort(404)
-    notify_subscribers(logger_id, "logger no longer exists".format(logger_id))
+    text_notify_subscribers(logger_id, "logger no longer exists".format(logger_id))
     del loggers[logger_id]
     del_logger(logger_id)
     return jsonify({'result': True})
@@ -114,10 +121,10 @@ if __name__ == '__main__':
 
     def handler(signum, frame):
         for logger_id in list(loggers.keys()):
-            notify_subscribers(logger_id, "Logger was removed for server maintenance".format(logger_id))
+            text_notify_subscribers(logger_id, "Logger was removed for server maintenance".format(logger_id))
             del loggers[logger_id]
             del_logger(logger_id)
-            updater.stop()
+        updater.stop()
         exit(0)
         
     signal.signal(signal.SIGINT, handler)
