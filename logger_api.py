@@ -81,7 +81,7 @@ def create_log(logger_id):
     elif 'media' in request.files:
         logger = loggers[logger_id]
         file = request.files['media']
-        logger.new_log(file)
+        logger.new_log("IMAGE")
         img_notify_subscribers(logger_id, file)
     elif 'text' in request.json:
         logger = loggers[logger_id]

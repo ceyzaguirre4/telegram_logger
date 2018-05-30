@@ -80,7 +80,7 @@ def start(bot, update, args):
     valid = """I accept /subscribe, /unsubscribe, /show_subscriptions, /create and /delete commands"""
     if args:
         if args not in subscribers:
-            update.message.reply_text("logger id does not exist.\n" + valid)
+            update.message.reply_text("{} does not exist.\n".format(args) + valid)
         else:
             subscribers[args].add(update.message.chat_id)
             update.message.reply_text("You are now subscribed to {}\n".format(args[0]) + valid)
