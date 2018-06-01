@@ -61,7 +61,7 @@ def hello():
 def get_logger(logger_id):
     if not logger_id in loggers:
         abort(404)
-    return jsonify({'logger_id': loggers[logger_id], 'path': 'https://t.me/LossNotifierBot?start=' + loggers[logger_id]})
+    return jsonify({'logger_id': str(loggers[logger_id]), 'path': "https://t.me/LossNotifierBot?start=" + str(loggers[logger_id])})
 
 
 @app.route('/loggers', methods=['POST'])

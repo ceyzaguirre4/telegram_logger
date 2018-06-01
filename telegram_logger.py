@@ -79,10 +79,10 @@ def start(bot, update, args):
     """https://t.me/LossNotifierBot?start=Hello%20World!"""
     valid = """I accept /subscribe, /unsubscribe, /show_subscriptions, /create and /delete commands"""
     if args:
-        if args not in subscribers:
-            update.message.reply_text("{} does not exist.\n".format(args) + valid)
+        if args[0] not in subscribers:
+            update.message.reply_text("{} does not exist.\n".format(args[0]) + valid)
         else:
-            subscribers[args].add(update.message.chat_id)
+            subscribers[args[0]].add(update.message.chat_id)
             update.message.reply_text("You are now subscribed to {}\n".format(args[0]) + valid)
     else:
         update.message.reply_text(valid)
