@@ -66,8 +66,18 @@ resp = requests.post(url, files=files)
 To obtain the full log (json encoded with timestamps, but no images) use:
 
 ~~~python
-basepath + "loggers/{}/full_log".format(logger_id)
+url = basepath + "loggers/{}/full_log".format(logger_id)
 resp = requests.get(url)
 print(resp.text)
+~~~
+
+## Subscribe URL
+
+A url to automatically subscribe to a certain logger can be found with GET.
+
+~~~python
+url = basepath + "loggers/{}".format(logger_id)
+resp = requests.get(url)
+print(resp.text)   >>   {"logger_id": "QE7NDJZ87H7Y",  "path": "https://t.me/LossNotifierBot?start=LOGGERID"}
 ~~~
 
