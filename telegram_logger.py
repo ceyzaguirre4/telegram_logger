@@ -260,9 +260,12 @@ def unknown(bot, update):
 
 
 ### funcion para notificar
-def text_notify_subscribers(logger_id, message):
+def text_notify_subscribers(logger_id, message, title=""):
     for chat_id in subscribers[logger_id]:
-        bot.send_message(chat_id=chat_id, text="{}:\n{}".format(logger_id, message))
+        if title:
+            bot.send_message(chat_id=chat_id, text="{}:\n{}".format(title, message))
+        else:
+            bot.send_message(chat_id=chat_id, text="{}:\n{}".format(logger_id, message))
 
 def img_notify_subscribers(logger_id, image):
     for chat_id in subscribers[logger_id]:

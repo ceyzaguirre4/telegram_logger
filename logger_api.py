@@ -61,7 +61,7 @@ def hello():
 def get_logger(logger_id):
     if not logger_id in loggers:
         abort(404)
-    return jsonify({'logger_id': str(loggers[logger_id]), 'path': "https://t.me/LossNotifierBot?start=" + str(loggers[logger_id])})
+    return jsonify({'logger_id': str(loggers[logger_id]), 'path': "https://t.me/LossNotifierBot?start=" + logger_id})
 
 
 @app.route('/loggers', methods=['POST'])
@@ -85,9 +85,12 @@ def create_log(logger_id):
         img_notify_subscribers(logger_id, file)
     elif 'text' in request.json:
         logger = loggers[logger_id]
-        params = json.loads(request.json)
+        params = json.loads(request.json) if type(request.json) == str else request.json
         logger.new_log(params['text'])
-        text_notify_subscribers(logger_id, params['text'])
+        if 'title' in request.json:
+            text_notify_subscribers(logger_id, params['text'], params['title'])
+        else:
+            text_notify_subscribers(logger_id, params['text'])
     else:
         abort(400)
     return jsonify({'result': True}), 201
